@@ -62,6 +62,10 @@ python train.py \
     --n-encoder-layers 3 \
     --n-decoder-layers 3
 
+echo "--- Contents of toy_example/checkpoints/ after train.py ---"
+ls -l toy_example/checkpoints/
+echo "--- End of contents ---"
+
 python average_checkpoints.py \
     --checkpoint-dir toy_example/checkpoints/ \
     --output toy_example/checkpoints/checkpoint_averaged.pt \
