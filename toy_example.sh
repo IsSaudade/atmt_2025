@@ -1,6 +1,6 @@
 #!/usr/bin/bash -l
 #SBATCH --partition teaching
-#SBATCH --time=0:15:0
+#SBATCH --time=0:30:0
 #SBATCH --ntasks=1
 #SBATCH --mem=8GB
 #SBATCH --cpus-per-task=1
@@ -44,7 +44,6 @@ python train.py \
     --max-epoch 10 \
     --log-file toy_example/logs/train.log \
     --save-dir toy_example/checkpoints/ \
-    --ignore-checkpoints \
     --encoder-dropout 0.1 \
     --decoder-dropout 0.1 \
     --dim-embedding 256 \
