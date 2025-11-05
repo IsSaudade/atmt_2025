@@ -51,6 +51,7 @@ python train.py \
     --log-file toy_example/logs/train.log \
     --save-dir toy_example/checkpoints/ \
     --save-interval 1 \
+    --epoch-checkpoints \
     --encoder-dropout 0.1 \
     --decoder-dropout 0.1 \
     --dim-embedding 256 \
