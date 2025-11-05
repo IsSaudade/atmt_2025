@@ -21,9 +21,9 @@ def main(args):
     epoch_checkpoints = []
     for f in checkpoint_files:
         basename = os.path.basename(f)
-        if basename.startswith('checkpoint_') and basename != 'checkpoint_best.pt' and basename != 'checkpoint_last.pt':
+        if basename.startswith('checkpoint') and '_' in basename and basename != 'checkpoint_best.pt' and basename != 'checkpoint_last.pt':
             try:
-                epoch_num = int(basename.split('_')[1].split('.')[0])
+                epoch_num = int(basename.split('_')[0].replace('checkpoint', ''))
                 epoch_checkpoints.append((epoch_num, f))
             except (ValueError, IndexError):
                 continue
