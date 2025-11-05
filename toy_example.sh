@@ -28,15 +28,15 @@ python preprocess.py \
     --test-prefix test \
     --train-prefix train \
     --valid-prefix valid \
-    --src-vocab-size 1000 \
-    --tgt-vocab-size 1000 \
+    --vocab-size 2000 \
+    --joint-bpe \
     --ignore-existing \
     --force-train
 
 python train.py \
     --data toy_example/data/prepared/ \
-    --src-tokenizer toy_example/tokenizers/cz-bpe-1000.model \
-    --tgt-tokenizer toy_example/tokenizers/en-bpe-1000.model \
+    --src-tokenizer toy_example/tokenizers/joint-bpe-2000.model \
+    --tgt-tokenizer toy_example/tokenizers/joint-bpe-2000.model \
     --source-lang cz \
     --target-lang en \
     --batch-size 32 \
@@ -55,11 +55,16 @@ python train.py \
     --n-encoder-layers 3 \
     --n-decoder-layers 3
 
+python average_checkpoints.py \
+    --checkpoint-dir toy_example/checkpoints/ \
+    --output toy_example/checkpoints/checkpoint_averaged.pt \
+    --n 3
+
 python translate.py \
     --input toy_example/data/raw/test.cz \
-    --src-tokenizer toy_example/tokenizers/cz-bpe-1000.model \
-    --tgt-tokenizer toy_example/tokenizers/en-bpe-1000.model \
-    --checkpoint-path toy_example/checkpoints/checkpoint_best.pt \
+    --src-tokenizer toy_example/tokenizers/joint-bpe-2000.model \
+    --tgt-tokenizer toy_example/tokenizers/joint-bpe-2000.model \
+    --checkpoint-path toy_example/checkpoints/checkpoint_averaged.pt \
     --batch-size 1 \
     --max-len 100 \
     --output toy_example/toy_example_output.en \

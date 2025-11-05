@@ -24,9 +24,9 @@ def get_args():
     parser.add_argument('--valid-prefix', default=None, metavar='FP', help='raw valid file prefix (without .lang extension)')
     parser.add_argument('--test-prefix', default=None, metavar='FP', help='raw test file prefix (without .lang extension)')
     parser.add_argument("--ignore-existing", action="store_true", help="Skip processing of raw-files if the output file already exists. Useful for resuming.")
-    parser.add_argument("--src-vocab-size", type=int, default=32000, help="Vocabulary size for Source Language SentencePiece.")
-    parser.add_argument("--tgt-vocab-size", type=int, default=32000, help="Vocabulary size for Target Language SentencePiece.")
-    
+    parser.add_argument("--vocab-size", type=int, default=32000, help="Vocabulary size for SentencePiece.")
+    parser.add_argument("--joint-bpe", action="store_true", help="Train a joint BPE model for source and target languages.")
+
     parser.add_argument("--quiet", action="store_true", help="Suppress logging output.")
 
     # OPTIONAL: add possibility to override default tokens
@@ -75,67 +75,99 @@ if __name__ == "__main__":
     # parse arguments from the command line
     args = get_args()
 
-    # define paths for tokenization models
-    # if no model path is given, create a model path in the model directory with the format LANG-bpe-VOCABSIZE.model
-    tgt_tokenizer_model = args.tgt_model if args.tgt_model \
-        else os.path.join(args.model_dir, f"{args.target_lang}-bpe-{args.tgt_vocab_size}.model")
-    src_tokenizer_model = args.src_model if args.src_model \
-        else os.path.join(args.model_dir, f"{args.source_lang}-bpe-{args.src_vocab_size}.model")
-    
     os.makedirs(args.dest_dir, exist_ok=True)
 
-    # ----------------------------
-    # SOURCE LANGUAGE:
-    src_processor = BPETokenizer(
-        language=args.source_lang,
-        vocab_size=args.src_vocab_size,
-        eos=args.eos_token,
-        bos=args.bos_token,
-        pad=args.pad_token,
-        unk=args.unk_token
-    )
-    # train or load model
-    # if no model path is given or the given model file does not exist, train a new model
-    if (not os.path.exists(src_tokenizer_model)) or (args.force_train):
-        # error handling if no training data is provided
-        if args.train_prefix is None:
-            raise ValueError("No training data provided for training the source language tokenizer model.")
-        # train model
-        src_processor.train_tokenizer(training_data=os.path.join(args.raw_data, f"{args.train_prefix}.{args.source_lang}"), model_dir=args.model_dir)
-        if not args.quiet:
-            logging.info('Trained SentencePiece model for {} with {} words'.format(args.source_lang, src_processor.vocab_size))
+    if args.joint_bpe:
+        # ----------------------------
+        # JOINT BPE:
+        joint_tokenizer_model = os.path.join(args.model_dir, f"joint-bpe-{args.vocab_size}.model")
+        
+        processor = BPETokenizer(
+            language='joint',
+            vocab_size=args.vocab_size,
+            eos=args.eos_token,
+            bos=args.bos_token,
+            pad=args.pad_token,
+            unk=args.unk_token
+        )
+
+        if (not os.path.exists(joint_tokenizer_model)) or (args.force_train):
+            if args.train_prefix is None:
+                raise ValueError("No training data provided for training the joint BPE tokenizer model.")
+            
+            training_data = f"{os.path.join(args.raw_data, f'{args.train_prefix}.{args.source_lang}')},{os.path.join(args.raw_data, f'{args.train_prefix}.{args.target_lang}')}"
+            processor.train_tokenizer(training_data=training_data, model_dir=args.model_dir)
+            if not args.quiet:
+                logging.info(f'Trained joint SentencePiece model with {processor.vocab_size} words')
+        else:
+            processor.load(model_path=joint_tokenizer_model)
+            if not args.quiet:
+                logging.info(f'Loaded joint SentencePiece model from {joint_tokenizer_model}')
+        
+        processor.save_vocab(args.model_dir)
+        src_processor = processor
+        tgt_processor = processor
+        # ----------------------------
     else:
-        # load model
-        src_processor.load(model_path=src_tokenizer_model)
-        if not args.quiet:
-            logging.info('Loaded SentencePiece model for {} from {}'.format(args.source_lang, src_tokenizer_model))
-    src_processor.save_vocab(args.model_dir)
-    # ----------------------------
+        # define paths for tokenization models
+        # if no model path is given, create a model path in the model directory with the format LANG-bpe-VOCABSIZE.model
+        tgt_tokenizer_model = args.tgt_model if args.tgt_model \
+            else os.path.join(args.model_dir, f"{args.target_lang}-bpe-{args.vocab_size}.model")
+        src_tokenizer_model = args.src_model if args.src_model \
+            else os.path.join(args.model_dir, f"{args.source_lang}-bpe-{args.vocab_size}.model")
+        
+        # ----------------------------
+        # SOURCE LANGUAGE:
+        src_processor = BPETokenizer(
+            language=args.source_lang,
+            vocab_size=args.vocab_size,
+            eos=args.eos_token,
+            bos=args.bos_token,
+            pad=args.pad_token,
+            unk=args.unk_token
+        )
+        # train or load model
+        # if no model path is given or the given model file does not exist, train a new model
+        if (not os.path.exists(src_tokenizer_model)) or (args.force_train):
+            # error handling if no training data is provided
+            if args.train_prefix is None:
+                raise ValueError("No training data provided for training the source language tokenizer model.")
+            # train model
+            src_processor.train_tokenizer(training_data=os.path.join(args.raw_data, f"{args.train_prefix}.{args.source_lang}"), model_dir=args.model_dir)
+            if not args.quiet:
+                logging.info('Trained SentencePiece model for {} with {} words'.format(args.source_lang, src_processor.vocab_size))
+        else:
+            # load model
+            src_processor.load(model_path=src_tokenizer_model)
+            if not args.quiet:
+                logging.info('Loaded SentencePiece model for {} from {}'.format(args.source_lang, src_tokenizer_model))
+        src_processor.save_vocab(args.model_dir)
+        # ----------------------------
 
 
-    # ----------------------------
-    # TARGET LANGUAGE:
-    tgt_processor = BPETokenizer(
-        language=args.target_lang,
-        vocab_size=args.tgt_vocab_size,
-        eos=args.eos_token,
-        bos=args.bos_token,
-        pad=args.pad_token,
-        unk=args.unk_token
-    )
-    # train or load model
-    if (not os.path.exists(tgt_tokenizer_model)) or (args.force_train):
-        if args.train_prefix is None:
-            raise ValueError("No training data provided for training the target language tokenizer model.")
-        tgt_processor.train_tokenizer(training_data=os.path.join(args.raw_data, f"{args.train_prefix}.{args.target_lang}"), model_dir=args.model_dir)
-        if not args.quiet:
-            logging.info('Trained SentencePiece model for {} with {} words'.format(args.target_lang, tgt_processor.vocab_size))
-    else:
-        tgt_processor.load(model_path=tgt_tokenizer_model)
-        if not args.quiet:
-            logging.info('Loaded SentencePiece model for {} from {}'.format(args.target_lang, args.tgt_model))
-    tgt_processor.save_vocab(args.model_dir)
-    # ----------------------------
+        # ----------------------------
+        # TARGET LANGUAGE:
+        tgt_processor = BPETokenizer(
+            language=args.target_lang,
+            vocab_size=args.vocab_size,
+            eos=args.eos_token,
+            bos=args.bos_token,
+            pad=args.pad_token,
+            unk=args.unk_token
+        )
+        # train or load model
+        if (not os.path.exists(tgt_tokenizer_model)) or (args.force_train):
+            if args.train_prefix is None:
+                raise ValueError("No training data provided for training the target language tokenizer model.")
+            tgt_processor.train_tokenizer(training_data=os.path.join(args.raw_data, f"{args.train_prefix}.{args.target_lang}"), model_dir=args.model_dir)
+            if not args.quiet:
+                logging.info('Trained SentencePiece model for {} with {} words'.format(args.target_lang, tgt_processor.vocab_size))
+        else:
+            tgt_processor.load(model_path=tgt_tokenizer_model)
+            if not args.quiet:
+                logging.info('Loaded SentencePiece model for {} from {}'.format(args.target_lang, args.tgt_model))
+        tgt_processor.save_vocab(args.model_dir)
+        # ----------------------------
 
     # function to create dataset splits with the desired prefixes
     def make_split_datasets(lang, pre_processor):
