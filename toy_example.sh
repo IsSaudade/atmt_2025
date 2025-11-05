@@ -19,6 +19,11 @@ rm -rf toy_example/checkpoints
 rm -rf toy_example/logs
 rm -f toy_example/toy_example_output.en
 
+echo "--- Content of toy_example.sh as executed by sbatch ---"
+cat toy_example.sh
+echo "--- End of toy_example.sh content ---"
+echo ""
+
 python preprocess.py \
     --source-lang cz \
     --target-lang en \
@@ -33,6 +38,7 @@ python preprocess.py \
     --ignore-existing \
     --force-train
 
+echo "--- Executing train.py command ---"
 python train.py \
     --data toy_example/data/prepared/ \
     --src-tokenizer toy_example/tokenizers/joint-bpe-2000.model \
