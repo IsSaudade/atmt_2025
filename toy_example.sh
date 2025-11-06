@@ -66,6 +66,11 @@ echo "--- Contents of toy_example/checkpoints/ after train.py ---"
 ls -l toy_example/checkpoints/
 echo "--- End of contents ---"
 
+echo "--- Content of average_checkpoints.py as executed ---"
+cat average_checkpoints.py
+echo "--- End of average_checkpoints.py content ---"
+echo ""
+
 python average_checkpoints.py \
     --checkpoint-dir toy_example/checkpoints/ \
     --output toy_example/checkpoints/checkpoint_averaged.pt \
