@@ -15,7 +15,7 @@ def main(args):
     logging.basicConfig(level=logging.INFO)
 
     # Find checkpoint files
-    checkpoint_files = glob.glob(os.path.join(args.checkpoint_dir, 'checkpoint_*.pt'))
+    checkpoint_files = glob.glob(os.path.join(args.checkpoint_dir, 'checkpoint*.pt'))
     
     # Filter out best and last checkpoints, and sort by epoch number
     epoch_checkpoints = []
