@@ -1,0 +1,18 @@
+
+Filesystems usage for user ylei ( uid 646293698 ):
+-------------------------------------------------------------------------------------
+Directory                       Used   Limit   Used,%         Files     Limit
+-------------------------------------------------------------------------------------
+/home/ylei                     228MB    15GB     1.5%          2299    100000
+/data/ylei                      14GB   200GB     6.5%         40248          
+/scratch/ylei                     0B    20TB     0.0%             1          
+
+/shares/atomt.pilot.s3it.uzh   1.4GB    10TB     0.0%            13          
+-------------------------------------------------------------------------------------
+
+Files on /scratch may be purged after 30 days.
+See https://docs.s3it.uzh.ch/cluster/data
+
+Job started at Sun Oct  5 13:56:03 CEST 2025
+u20-chiivm0-603
+Job finished at Sun Oct  5 13:56:03 CEST 2025
