@@ -9,6 +9,7 @@ def decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_mask: torch.Te
     BOS = tgt_tokenizer.bos_id()
     EOS = tgt_tokenizer.eos_id()
     PAD = tgt_tokenizer.pad_id()
+    
     # --- OPTIMIZATION: run encoder only once ---
     with torch.no_grad():
         encoder_out, encoder_pad_mask = model.encoder(src_tokens, src_pad_mask)
