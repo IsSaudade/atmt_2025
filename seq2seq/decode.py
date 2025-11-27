@@ -26,7 +26,7 @@ def decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_mask: torch.Te
         
         with torch.no_grad():
             # Forward pass through the decoder only, using the pre-computed encoder output.
-            output = model.decoder(encoder_out, src_pad_mask, generated, trg_pad_mask)
+            output = model.decoder(generated, trg_pad_mask, encoder_out, src_pad_mask)
         next_token_logits = output[:, -1, :]  # last time step, (batch_size, vocab_size)
         next_tokens = next_token_logits.argmax(dim=-1, keepdim=True)  # greedy
 
@@ -70,7 +70,7 @@ def beam_search_decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_ma
                 # __QUESTION 2: Why do we need to create trg_pad_mask here and how does it affect the model's predictions?
                 trg_pad_mask = (seq == PAD)[:, None, None, :]
                 # Call decoder directly with pre-computed encoder output
-                logits = model.decoder(encoder_out, src_pad_mask, seq, trg_pad_mask)[:, -1, :]
+                logits = model.decoder(seq, trg_pad_mask, encoder_out, src_pad_mask)[:, -1, :]
                 # __QUESTION 3: Explain the purpose of applying log_softmax and selecting top-k tokens here.
                 log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
                 topk_log_probs, topk_ids = log_probs.topk(beam_size, dim=-1)
