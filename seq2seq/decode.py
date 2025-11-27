@@ -9,20 +9,31 @@ def decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_mask: torch.Te
     BOS = tgt_tokenizer.bos_id()
     EOS = tgt_tokenizer.eos_id()
     PAD = tgt_tokenizer.pad_id()
-    # --- OPTIMIZATION: run encoder only once ---
+                      
+    # --- OPTIMIZATION START ---
+    # 1. Run the encoder only once before the loop
     with torch.no_grad():
-        encoder_out, encoder_pad_mask = model.encoder(src_tokens, src_pad_mask), src_pad_mask
+        encoder_output = model.encode(src_tokens, src_pad_mask)
+    # --- OPTIMIZATION END ---   
+                      
     generated = torch.full((batch_size, 1), BOS, dtype=torch.long, device=device)
     finished = torch.zeros(batch_size, dtype=torch.bool, device=device)
     for t in range(max_out_len):
+        # Create target padding mask with correct batch dimension
+        max_len = model.decoder.pos_embed.size(1)
+        if generated.size(1) > max_len:
+            generated = generated[:, :max_len]
         # Ensure trg_pad_mask has shape (batch_size, seq_len)
         trg_pad_mask = (generated == PAD).unsqueeze(1).unsqueeze(2)  # (batch_size, 1, 1, seq_len)
-
-        # --- OPTIMIZATION: only run decoder ---
+               
+        # --- OPTIMIZATION START ---
+        # 2. In the loop, call only the decoder with the pre-computed encoder_output       
         with torch.no_grad():
-            decoder_out = model.decoder(generated, trg_pad_mask, encoder_out, encoder_pad_mask)
+            output = model.decode(generated, encoder_output, trg_pad_mask, src_pad_mask)
+        # --- OPTIMIZATION END ---          
+               
         # Get the logits for the last time step
-        next_token_logits = decoder_out[:, -1, :]  # last time step
+        next_token_logits = output[:, -1, :]  # last time step
         next_tokens = next_token_logits.argmax(dim=-1, keepdim=True)  # greedy
 
         # Append next token to each sequence
@@ -48,7 +59,26 @@ def beam_search_decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_ma
     BOS, EOS, PAD = tgt_tokenizer.bos_id(), tgt_tokenizer.eos_id(), tgt_tokenizer.pad_id()
     # --- OPTIMIZATION: run encoder once ---
     with torch.no_grad():
-        encoder_out, encoder_pad_mask = model.encoder(src_tokens, src_pad_mask), src_pad_mask
+        encoder_out= model.encoder(src_tokens, src_pad_mask)
+        input_batch_size = src_tokens.size(0)
+        encoder_output = encoder_output.repeat_interleave(beam_size, dim=0)
+        # Also need to adjust the src_pad_mask for the decoder
+        src_pad_mask_expanded = src_pad_mask.repeat_interleave(beam_size, dim=0)
+
+    # Beams are now initialized per item in the batch
+    beams = [(torch.full((1, 1), BOS, dtype=torch.long, device=device), 0.0) for _ in range(input_batch_size)]
+    
+    # This implementation is complex to fully batch, we stick to the assignment's batch=1 assumption
+    # For simplicity, let's revert to batch_size=1 logic which aligns with the original code's structure
+    if input_batch_size > 1:
+        # The original code structure is not designed for batch_size > 1 with beam search.
+        # We will proceed with the optimization assuming batch_size = 1 as the original code does.
+        # For a true batch implementation, the beam management logic would need a significant rewrite.
+        encoder_output = model.encode(src_tokens, src_pad_mask) # Re-encode without expansion
+        src_pad_mask_expanded = src_pad_mask
+    # --- OPTIMIZATION END ---
+
+                                  
     # __QUESTION 1: what does this line set up and why is the beam represented this way?
     beams = [(torch.tensor([[BOS]], device=device), 0.0)]
     for _ in range(max_out_len):
@@ -78,4 +108,3 @@ def beam_search_decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_ma
     best_seq, _ = beams[0]
     # __QUESTION 6: What is returned, and why are we squeezing, converting to list and wrapping in another list here?
     return [best_seq.squeeze(0).tolist()]
-
