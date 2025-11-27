@@ -11,7 +11,7 @@ def decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_mask: torch.Te
     PAD = tgt_tokenizer.pad_id()
     # --- OPTIMIZATION: run encoder only once ---
     with torch.no_grad():
-        encoder_out, encoder_pad_mask = model.encoder(src_tokens, src_pad_mask)
+        encoder_out, encoder_pad_mask = model.encoder(src_tokens, src_pad_mask), src_pad_mask
     generated = torch.full((batch_size, 1), BOS, dtype=torch.long, device=device)
     finished = torch.zeros(batch_size, dtype=torch.bool, device=device)
     for t in range(max_out_len):
@@ -48,7 +48,7 @@ def beam_search_decode(model: Seq2SeqModel, src_tokens: torch.Tensor, src_pad_ma
     BOS, EOS, PAD = tgt_tokenizer.bos_id(), tgt_tokenizer.eos_id(), tgt_tokenizer.pad_id()
     # --- OPTIMIZATION: run encoder once ---
     with torch.no_grad():
-        encoder_out, encoder_pad_mask = model.encoder(src_tokens, src_pad_mask)
+        encoder_out, encoder_pad_mask = model.encoder(src_tokens, src_pad_mask), src_pad_mask
     # __QUESTION 1: what does this line set up and why is the beam represented this way?
     beams = [(torch.tensor([[BOS]], device=device), 0.0)]
     for _ in range(max_out_len):
